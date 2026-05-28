@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">🔴 Zdieľanie obrazovky</div>
+
+<div class="card">
+  <h3>Začni zdieľanie</h3>
+
+  <input id="room" placeholder="Kód miestnosti">
+  <button onclick="start()">Štart</button>
+
+  <video id="video" autoplay playsinline style="width:100%"></video>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+let pc;
+let stream;
+
+async function start() {
+  const roomId = document.getElementById("room").value;
+
+  socket.emit("join", roomId);
+
+  stream = await navigator.mediaDevices.getDisplayMedia({
+    video: true
+  });
+
+  document.getElementById("video").srcObject = stream;
+
+  pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      socket.emit("signal", { roomId, data: e.candidate });
+    }
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  socket.emit("signal", { roomId, data: offer });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">⚫ Remote Viewer</div>
+
+<div class="card">
+  <h3>Pripojenie</h3>
+
+  <input id="room" placeholder="Kód miestnosti">
+  <button onclick="join()">Pripojiť</button>
+
+  <video id="video" autoplay playsinline style="width:100%"></video>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+let pc;
+
+function join() {
+  const roomId = document.getElementById("room").value;
+
+  socket.emit("join", roomId);
+
+  pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  pc.ontrack = (e) => {
+    document.getElementById("video").srcObject = e.streams[0];
+  };
+
+  socket.on("signal", async (data) => {
+
+    if (data.type === "offer") {
+      await pc.setRemoteDescription(data);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socket.emit("signal", { roomId, data: answer });
+    }
+
+    if (data.candidate) {
+      await pc.addIceCandidate(data);
+    }
+  });
+}
+</script>
+
+</body>
+</html>
